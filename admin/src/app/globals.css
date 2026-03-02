@@ -1,0 +1,72 @@
+@import "tailwindcss";
+
+@theme {
+  /* Brand palette */
+  --color-pink-light: #E8A0BF;
+  --color-pink-medium: #D4749C;
+  --color-pink-dark: #C0487A;
+
+  --color-navy: #0F172A;
+  --color-navy-heading: #1A1A1A;
+  --color-navy-secondary: #404040;
+
+  /* Luxury neutrals */
+  --color-cream: #FAF8F5;
+  --color-cream-dark: #F3F0EB;
+  --color-sidebar-bg: #0A0A0A;
+  --color-sidebar-hover: #1A1A1A;
+  --color-sidebar-active: #141414;
+  --color-border-light: #E8E5E0;
+  --color-border-subtle: #F0EDE8;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background-color: var(--color-cream);
+    color: #1A1A1A;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    letter-spacing: -0.03em;
+    color: #1A1A1A;
+  }
+
+  h1 {
+    letter-spacing: -0.04em;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
