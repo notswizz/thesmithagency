@@ -10,11 +10,18 @@ export async function POST(req: NextRequest) {
     }
 
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-    const { clientId, amount, bookingId } = await req.json();
+    const { clientId, amount, bookingId, adjustments } = await req.json();
 
     if (!clientId || !amount || !bookingId) {
       return NextResponse.json(
         { error: 'clientId, amount, and bookingId are required' },
+        { status: 400 }
+      );
+    }
+
+    if (amount <= 0) {
+      return NextResponse.json(
+        { error: 'Amount must be greater than zero' },
         { status: 400 }
       );
     }
@@ -68,12 +75,16 @@ export async function POST(req: NextRequest) {
     });
 
     // Update booking in Firestore
-    await updateDoc(doc(db, 'bookings', bookingId), {
+    const updateData: Record<string, unknown> = {
       paymentStatus: 'paid',
       finalAmount: Math.round(amount * 100),
       stripeFinalPaymentId: paymentIntent.id,
       updatedAt: serverTimestamp(),
-    });
+    };
+    if (adjustments && Array.isArray(adjustments)) {
+      updateData.adjustments = adjustments;
+    }
+    await updateDoc(doc(db, 'bookings', bookingId), updateData);
 
     return NextResponse.json({
       success: true,

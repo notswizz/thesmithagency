@@ -10,6 +10,7 @@ struct ClientTabView: View {
     @State private var stripeService = StripeService()
     @State private var showNewBooking = false
     @State private var showCompanyProfile = false
+    @State private var showTerms = false
 
     init(uid: String, firestoreService: FirestoreService) {
         self.uid = uid
@@ -25,12 +26,12 @@ struct ClientTabView: View {
                 viewModel: bookingVM,
                 firestoreService: firestoreService,
                 onCompanyTap: { showCompanyProfile = true },
-                onNewBooking: { showNewBooking = true }
+                onNewBooking: { startNewBooking() }
             )
 
             // FAB
             Button {
-                showNewBooking = true
+                startNewBooking()
             } label: {
                 Image(systemName: "plus")
                     .font(.system(size: 22, weight: .semibold))
@@ -66,6 +67,28 @@ struct ClientTabView: View {
         }
         .sheet(isPresented: $showCompanyProfile) {
             CompanyProfileView(uid: uid, viewModel: clientVM)
+        }
+        .sheet(isPresented: $showTerms) {
+            TermsAcceptanceView(
+                uid: uid,
+                firestoreService: firestoreService,
+                onAccepted: {
+                    Task {
+                        await clientVM.loadClient(uid: uid)
+                        showNewBooking = true
+                    }
+                }
+            )
+        }
+    }
+
+    private func startNewBooking() {
+        let needsTC = clientVM.client?.tcAcceptedAt == nil
+            || clientVM.client?.tcVersion != TermsText.currentVersion
+        if needsTC {
+            showTerms = true
+        } else {
+            showNewBooking = true
         }
     }
 }

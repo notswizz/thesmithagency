@@ -94,7 +94,12 @@ final class BookingViewModel {
         paymentStatus: String? = nil,
         depositAmount: Int? = nil,
         stripePaymentIntentId: String? = nil,
-        stripeCustomerId: String? = nil
+        stripeCustomerId: String? = nil,
+        market: String? = nil,
+        dailyRate: Int? = nil,
+        totalStaffDays: Int? = nil,
+        estimatedTotal: Int? = nil,
+        balanceDue: Int? = nil
     ) async {
         guard let showId = selectedShowId else {
             errorMessage = "Please select a show"
@@ -130,7 +135,12 @@ final class BookingViewModel {
             totalStaffNeeded: datesNeeded.reduce(0) { $0 + ($1.staffCount ?? 0) },
             datesNeeded: datesNeeded
         )
+        booking.market = market
+        booking.dailyRate = dailyRate
+        booking.totalStaffDays = totalStaffDays
+        booking.estimatedTotal = estimatedTotal
         booking.depositAmount = depositAmount
+        booking.balanceDue = balanceDue
         booking.stripeCustomerId = stripeCustomerId
         booking.stripePaymentIntentId = stripePaymentIntentId
 

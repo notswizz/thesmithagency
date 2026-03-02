@@ -35,6 +35,22 @@ struct BookingReviewView: View {
         datesNeeded.reduce(0) { $0 + ($1.staffCount ?? 0) }
     }
 
+    private var market: String {
+        selectedShow?.market ?? "other"
+    }
+
+    private var dailyRate: Int {
+        MarketPricing.dailyRate(for: market)
+    }
+
+    private var estimatedTotal: Int {
+        MarketPricing.totalCost(market: market, staffDays: totalStaff)
+    }
+
+    private var balanceDueAmount: Int {
+        MarketPricing.balanceDue(market: market, staffDays: totalStaff)
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -191,6 +207,19 @@ struct BookingReviewView: View {
                                 .padding(.top, 8)
                             }
 
+                            // MARK: - Pricing Breakdown
+                            reviewCard(icon: "dollarsign.circle.fill", title: "PRICING") {
+                                VStack(spacing: 10) {
+                                    pricingRow(label: "Market Rate", value: MarketPricing.rateDescription(for: market))
+                                    pricingRow(label: "Staff Days", value: "\(totalStaff)")
+                                    Divider().overlay(Color.borderSubtle)
+                                    pricingRow(label: "Total", value: MarketPricing.formatCents(estimatedTotal), bold: true)
+                                    pricingRow(label: "Deposit (now)", value: "-\(MarketPricing.formatCents(MarketPricing.depositAmount))")
+                                    Divider().overlay(Color.borderSubtle)
+                                    pricingRow(label: "Balance Due", value: MarketPricing.formatCents(balanceDueAmount), bold: true, highlight: true)
+                                }
+                            }
+
                             // MARK: - Deposit
                             VStack(spacing: 0) {
                                 // Gradient accent line
@@ -329,6 +358,20 @@ struct BookingReviewView: View {
         .overlay(RoundedRectangle(cornerRadius: 16).strokeBorder(Color.borderSubtle))
     }
 
+    // MARK: - Pricing Row
+
+    private func pricingRow(label: String, value: String, bold: Bool = false, highlight: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14, weight: bold ? .semibold : .regular))
+                .foregroundStyle(bold ? .textPrimary : .textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: bold ? .bold : .medium, design: .rounded))
+                .foregroundStyle(highlight ? .brand : .textPrimary)
+        }
+    }
+
     // MARK: - Payment Logic
 
     private func prepareAndPay() async {
@@ -385,9 +428,14 @@ struct BookingReviewView: View {
             contact: contact,
             showroom: showroom,
             paymentStatus: "deposit_paid",
-            depositAmount: 10000,
+            depositAmount: MarketPricing.depositAmount,
             stripePaymentIntentId: paymentIntentId,
-            stripeCustomerId: stripeCustomerId
+            stripeCustomerId: stripeCustomerId,
+            market: market,
+            dailyRate: dailyRate,
+            totalStaffDays: totalStaff,
+            estimatedTotal: estimatedTotal,
+            balanceDue: balanceDueAmount
         )
 
         if viewModel.errorMessage == nil {

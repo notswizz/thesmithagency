@@ -20,6 +20,7 @@ export default function BookingsPage() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [showFilter, setShowFilter] = useState('all');
+  const [paymentFilter, setPaymentFilter] = useState('all');
 
   const enriched = useMemo(() => {
     return bookings.map((b) => ({
@@ -44,8 +45,9 @@ export default function BookingsPage() {
     if (search) result = searchEntities(result, search, ['clientName', 'showName']);
     if (statusFilter !== 'all') result = result.filter((b) => b.status === statusFilter);
     if (showFilter !== 'all') result = result.filter((b) => b.showId === showFilter);
+    if (paymentFilter !== 'all') result = result.filter((b) => (b.paymentStatus || 'unpaid') === paymentFilter);
     return result;
-  }, [enriched, search, statusFilter, showFilter]);
+  }, [enriched, search, statusFilter, showFilter, paymentFilter]);
 
   type EnrichedBooking = (typeof enriched)[number];
 
@@ -78,6 +80,15 @@ export default function BookingsPage() {
     {
       key: 'paymentStatus', header: 'Payment',
       render: (b) => b.paymentStatus ? <Badge status={b.paymentStatus as 'unpaid' | 'deposit_paid' | 'paid'}>{b.paymentStatus.replace('_', ' ')}</Badge> : <span className="text-xs text-navy-secondary/60">—</span>,
+    },
+    {
+      key: 'balance', header: 'Balance',
+      render: (b) => {
+        const balance = b.balanceDue;
+        if (balance == null) return <span className="text-xs text-navy-secondary/60">—</span>;
+        const color = b.paymentStatus === 'paid' ? 'text-emerald-600' : b.paymentStatus === 'deposit_paid' ? 'text-amber-600' : 'text-red-500';
+        return <span className={`text-sm font-medium ${color}`}>${(balance / 100).toFixed(2)}</span>;
+      },
     },
   ];
 
@@ -112,6 +123,16 @@ export default function BookingsPage() {
             </button>
           ))}
         </div>
+        <select
+          value={paymentFilter}
+          onChange={(e) => setPaymentFilter(e.target.value)}
+          className="px-3 py-2 text-sm rounded-lg ring-1 ring-border-light bg-white"
+        >
+          <option value="all">All payments</option>
+          <option value="unpaid">Unpaid</option>
+          <option value="deposit_paid">Deposit paid</option>
+          <option value="paid">Paid</option>
+        </select>
       </div>
 
       <Card padding={false}>

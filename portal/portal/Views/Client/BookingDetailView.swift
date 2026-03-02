@@ -11,6 +11,8 @@ struct BookingDetailView: View {
     @State private var isLoadingStaff = true
     @State private var listener: ListenerRegistration?
     @State private var appearAnimation = false
+    @State private var showCancelAlert = false
+    @State private var isCancelling = false
 
     private var allStaffIds: [String] {
         let ids = (booking.datesNeeded ?? []).flatMap { $0.staffIds ?? [] }
@@ -240,6 +242,88 @@ struct BookingDetailView: View {
                                         .frame(maxWidth: .infinity, alignment: .leading)
                                 }
                             }
+
+                            // MARK: - Pricing
+                            if let rate = booking.dailyRate, rate > 0 {
+                                detailCard(icon: "dollarsign.circle.fill", title: "PRICING") {
+                                    VStack(spacing: 10) {
+                                        pricingRow(label: "Market Rate", value: MarketPricing.rateDescription(for: booking.market ?? "other"))
+                                        pricingRow(label: "Staff Days", value: "\(booking.totalStaffDays ?? 0)")
+                                        Divider().overlay(Color.borderSubtle)
+                                        pricingRow(label: "Total", value: MarketPricing.formatCents(booking.estimatedTotal ?? 0), bold: true)
+                                        pricingRow(label: "Deposit Paid", value: "-\(MarketPricing.formatCents(booking.depositAmount ?? 0))")
+                                        Divider().overlay(Color.borderSubtle)
+
+                                        if booking.paymentStatus == "paid", let final_ = booking.finalAmount {
+                                            pricingRow(label: "Final Charged", value: MarketPricing.formatCents(final_), bold: true, highlight: true)
+                                        } else {
+                                            pricingRow(label: "Balance Due", value: MarketPricing.formatCents(booking.balanceDue ?? 0), bold: true, highlight: true)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // MARK: - Payment Status
+                            detailCard(icon: "creditcard.fill", title: "PAYMENT") {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(paymentStatusLabel)
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundStyle(paymentStatusColor)
+                                        Text(paymentStatusDetail)
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.textTertiary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: paymentStatusIcon)
+                                        .font(.system(size: 20))
+                                        .foregroundStyle(paymentStatusColor)
+                                }
+                            }
+
+                            // MARK: - Cancel Button
+                            if canCancel {
+                                VStack(spacing: 8) {
+                                    let days = CancellationPolicy.daysUntil(showStartDate: show?.startDate ?? "")
+                                    let rate = booking.dailyRate ?? MarketPricing.dailyRate(for: booking.market ?? "other")
+
+                                    Text(CancellationPolicy.policyDescription(daysUntilShow: days, dailyRate: rate))
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.textTertiary)
+
+                                    Button {
+                                        showCancelAlert = true
+                                    } label: {
+                                        if isCancelling {
+                                            ProgressView().tint(.red)
+                                        } else {
+                                            HStack(spacing: 6) {
+                                                Image(systemName: "xmark.circle.fill")
+                                                    .font(.system(size: 13))
+                                                Text("Cancel Booking")
+                                                    .font(.system(size: 15, weight: .semibold))
+                                            }
+                                        }
+                                    }
+                                    .foregroundStyle(.red)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 14)
+                                    .background(Color.red.opacity(0.1))
+                                    .clipShape(RoundedRectangle(cornerRadius: 14))
+                                    .disabled(isCancelling)
+                                }
+                                .alert("Cancel Booking?", isPresented: $showCancelAlert) {
+                                    Button("Keep Booking", role: .cancel) {}
+                                    Button("Cancel Booking", role: .destructive) {
+                                        Task { await cancelBooking() }
+                                    }
+                                } message: {
+                                    let days = CancellationPolicy.daysUntil(showStartDate: show?.startDate ?? "")
+                                    let rate = booking.dailyRate ?? MarketPricing.dailyRate(for: booking.market ?? "other")
+                                    let fee = CancellationPolicy.fee(daysUntilShow: days, dailyRate: rate)
+                                    Text("Cancellation fee: \(MarketPricing.formatCents(fee))")
+                                }
+                            }
                         }
                         .padding(.horizontal, 20)
 
@@ -390,6 +474,77 @@ struct BookingDetailView: View {
             Text("Staff Member")
                 .font(.system(size: 13))
                 .foregroundStyle(.textTertiary)
+        }
+    }
+
+    // MARK: - Pricing Row
+
+    private func pricingRow(label: String, value: String, bold: Bool = false, highlight: Bool = false) -> some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14, weight: bold ? .semibold : .regular))
+                .foregroundStyle(bold ? .textPrimary : .textSecondary)
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: bold ? .bold : .medium, design: .rounded))
+                .foregroundStyle(highlight ? .brand : .textPrimary)
+        }
+    }
+
+    // MARK: - Payment Status
+
+    private var paymentStatusLabel: String {
+        switch booking.paymentStatus {
+        case "paid": return "Fully Paid"
+        case "deposit_paid": return "Deposit Paid"
+        default: return "Unpaid"
+        }
+    }
+
+    private var paymentStatusColor: Color {
+        switch booking.paymentStatus {
+        case "paid": return .green
+        case "deposit_paid": return .orange
+        default: return .red
+        }
+    }
+
+    private var paymentStatusIcon: String {
+        switch booking.paymentStatus {
+        case "paid": return "checkmark.seal.fill"
+        case "deposit_paid": return "clock.fill"
+        default: return "exclamationmark.circle.fill"
+        }
+    }
+
+    private var paymentStatusDetail: String {
+        switch booking.paymentStatus {
+        case "paid": return "Final balance has been charged"
+        case "deposit_paid":
+            let balance = booking.balanceDue ?? 0
+            return balance > 0 ? "Balance of \(MarketPricing.formatCents(balance)) due after show" : "Deposit collected"
+        default: return "No payment received"
+        }
+    }
+
+    // MARK: - Cancellation
+
+    private var canCancel: Bool {
+        let status = booking.status ?? ""
+        return status != "cancelled" && status != "completed"
+    }
+
+    private func cancelBooking() async {
+        guard let bookingId = booking.id else { return }
+        isCancelling = true
+        let days = CancellationPolicy.daysUntil(showStartDate: show?.startDate ?? "")
+        let rate = booking.dailyRate ?? MarketPricing.dailyRate(for: booking.market ?? "other")
+        let fee = CancellationPolicy.fee(daysUntilShow: days, dailyRate: rate)
+        do {
+            try await firestoreService.cancelBooking(bookingId: bookingId, cancellationFee: fee)
+            dismiss()
+        } catch {
+            isCancelling = false
         }
     }
 

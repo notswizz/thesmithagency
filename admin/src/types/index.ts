@@ -36,6 +36,8 @@ export interface Client {
   email: string;
   website: string;
   stripeCustomerId?: string;
+  tcAcceptedAt?: Timestamp;
+  tcVersion?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -50,6 +52,7 @@ export interface Show {
   description: string;
   season: string;
   type: string;
+  market?: string;   // "atlanta" | "dallas" | "other"
   status: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -76,8 +79,18 @@ export interface Booking {
   showroomLocation?: string;
   notes: string;
   datesNeeded: DateNeed[];
-  depositAmount?: number;
-  finalAmount?: number;
+  market?: string;
+  dailyRate?: number;          // cents
+  totalStaffDays?: number;
+  estimatedTotal?: number;     // cents
+  depositAmount?: number;      // cents
+  balanceDue?: number;         // cents
+  finalAmount?: number;        // cents
+  cancellationFee?: number;    // cents
+  adjustments?: Array<{
+    label: string;
+    amount: number;            // cents, positive or negative
+  }>;
   stripeCustomerId?: string;
   stripePaymentIntentId?: string;
   stripeFinalPaymentId?: string;

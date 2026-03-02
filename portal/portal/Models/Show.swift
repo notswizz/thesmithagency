@@ -12,6 +12,7 @@ struct Show: Codable, Identifiable, Sendable {
     var type: String?
     var customType: String?
     var venue: String?
+    var market: String?  // "atlanta", "dallas", "other"
     var description: String?
     var createdAt: Timestamp?
     var updatedAt: Timestamp?

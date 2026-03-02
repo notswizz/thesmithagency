@@ -29,6 +29,10 @@ export default function BookingDetailPage() {
   const [pickerSlot, setPickerSlot] = useState<{ date: string; slotIndex: number } | null>(null);
   const [finalAmount, setFinalAmount] = useState('');
   const [isCharging, setIsCharging] = useState(false);
+  const [adjustments, setAdjustments] = useState<Array<{ label: string; amount: number }>>([]);
+  const [newAdjLabel, setNewAdjLabel] = useState('');
+  const [newAdjAmount, setNewAdjAmount] = useState('');
+  const [showChargeConfirm, setShowChargeConfirm] = useState(false);
 
   useEffect(() => {
     if (booking) {
@@ -259,69 +263,192 @@ export default function BookingDetailPage() {
         </Card>
       )}
 
-      {/* Charge Final */}
-      {booking.paymentStatus === 'deposit_paid' && booking.status === 'completed' && (
-        <Card>
-          <h2 className="text-lg font-semibold text-navy-heading mb-2">Charge Final Balance</h2>
-          <p className="text-sm text-navy-secondary mb-4">
-            Deposit of ${((booking.depositAmount || 10000) / 100).toFixed(2)} has been collected.
-            Enter the final amount to charge the client&apos;s saved card.
-          </p>
-          <div className="flex items-end gap-3">
-            <div className="flex-1">
-              <label className="block text-xs font-medium text-navy-secondary/50 uppercase tracking-wide mb-1">
-                Amount (USD)
-              </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-secondary/40">$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={finalAmount}
-                  onChange={(e) => setFinalAmount(e.target.value)}
-                  className="w-full pl-7 pr-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
-                />
+      {/* Final Charge */}
+      {(booking.paymentStatus === 'deposit_paid' && (booking.status === 'booked' || booking.status === 'completed')) && (() => {
+        const rate = booking.dailyRate || 0;
+        const days = booking.totalStaffDays || 0;
+        const subtotal = booking.estimatedTotal || (rate * days);
+        const deposit = booking.depositAmount || 10000;
+        const adjTotal = adjustments.reduce((sum, a) => sum + a.amount, 0);
+        const chargeAmount = subtotal - deposit + adjTotal;
+        const chargeDollars = chargeAmount / 100;
+        const marketName = booking.market ? booking.market.charAt(0).toUpperCase() + booking.market.slice(1) : 'Other';
+
+        return (
+          <Card>
+            <h2 className="text-lg font-semibold text-navy-heading mb-4 flex items-center gap-2">
+              <span>Final Charge</span>
+            </h2>
+
+            {/* Pricing breakdown */}
+            <div className="space-y-2 text-sm mb-4">
+              <div className="flex justify-between">
+                <span className="text-navy-secondary">Market Rate</span>
+                <span className="text-navy">${(rate / 100).toFixed(2)}/day ({marketName})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-navy-secondary">Staff Days</span>
+                <span className="text-navy">{days}</span>
+              </div>
+              <div className="border-t border-border-light pt-2 flex justify-between font-medium">
+                <span className="text-navy">Subtotal</span>
+                <span className="text-navy">${(subtotal / 100).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-navy-secondary">Deposit Paid</span>
+                <span className="text-emerald-600">-${(deposit / 100).toFixed(2)}</span>
+              </div>
+
+              {/* Adjustments */}
+              {adjustments.map((adj, i) => (
+                <div key={i} className="flex justify-between items-center">
+                  <span className="text-navy-secondary">{adj.label}</span>
+                  <div className="flex items-center gap-2">
+                    <span className={adj.amount >= 0 ? 'text-navy' : 'text-emerald-600'}>
+                      {adj.amount >= 0 ? '+' : '-'}${(Math.abs(adj.amount) / 100).toFixed(2)}
+                    </span>
+                    <button
+                      onClick={() => setAdjustments(adjustments.filter((_, j) => j !== i))}
+                      className="text-red-400 hover:text-red-600 text-xs"
+                    >
+                      &times;
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add adjustment */}
+              <div className="flex items-end gap-2 pt-2">
+                <div className="flex-1">
+                  <input
+                    type="text"
+                    placeholder="Label (e.g. Early departure)"
+                    value={newAdjLabel}
+                    onChange={(e) => setNewAdjLabel(e.target.value)}
+                    className="w-full px-3 py-1.5 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
+                  />
+                </div>
+                <div className="w-28">
+                  <div className="relative">
+                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-navy-secondary/40 text-sm">$</span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={newAdjAmount}
+                      onChange={(e) => setNewAdjAmount(e.target.value)}
+                      className="w-full pl-6 pr-2 py-1.5 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    const amt = parseFloat(newAdjAmount);
+                    if (!newAdjLabel.trim() || isNaN(amt)) return;
+                    setAdjustments([...adjustments, { label: newAdjLabel.trim(), amount: Math.round(amt * 100) }]);
+                    setNewAdjLabel('');
+                    setNewAdjAmount('');
+                  }}
+                  className="px-3 py-1.5 text-sm font-medium text-pink-dark hover:bg-pink-dark/5 rounded-lg transition-colors"
+                >
+                  + Add
+                </button>
+              </div>
+
+              {/* Total */}
+              <div className="border-t border-border-light pt-3 flex justify-between text-base font-semibold">
+                <span className="text-navy-heading">Amount to Charge</span>
+                <span className="text-navy-heading">${chargeDollars.toFixed(2)}</span>
               </div>
             </div>
+
+            {/* Charge button */}
             <Button
-              onClick={async () => {
-                const dollars = parseFloat(finalAmount);
-                if (!dollars || dollars <= 0) {
-                  toast('error', 'Enter a valid amount');
-                  return;
-                }
-                setIsCharging(true);
-                try {
-                  const res = await fetch('/api/stripe/charge-final', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                      clientId: booking.clientId,
-                      amount: dollars,
-                      bookingId: booking.id,
-                    }),
-                  });
-                  const data = await res.json();
-                  if (!res.ok) throw new Error(data.error || 'Charge failed');
-                  toast('success', `Charged $${dollars.toFixed(2)} successfully`);
-                  setFinalAmount('');
-                } catch (err) {
-                  toast('error', err instanceof Error ? err.message : 'Charge failed');
-                } finally {
-                  setIsCharging(false);
-                }
-              }}
-              disabled={isCharging || !finalAmount}
+              onClick={() => setShowChargeConfirm(true)}
+              disabled={isCharging || chargeAmount <= 0}
             >
-              {isCharging ? 'Charging...' : 'Charge Final'}
+              {isCharging ? 'Charging...' : `Charge ${client?.name || 'Client'} $${chargeDollars.toFixed(2)}`}
             </Button>
+
+            {booking.stripeFinalPaymentId && (
+              <p className="mt-3 text-xs text-emerald-600">
+                Final payment collected — {booking.stripeFinalPaymentId}
+              </p>
+            )}
+
+            {/* Confirmation modal */}
+            <Modal open={showChargeConfirm} onClose={() => setShowChargeConfirm(false)} title="Confirm Charge">
+              <p className="text-sm text-navy-secondary mb-4">
+                Charge <span className="font-semibold text-navy">{client?.name}</span> <span className="font-semibold text-navy">${chargeDollars.toFixed(2)}</span> to their card on file?
+              </p>
+              <div className="flex gap-3 justify-end">
+                <Button onClick={() => setShowChargeConfirm(false)}>Cancel</Button>
+                <Button
+                  onClick={async () => {
+                    setShowChargeConfirm(false);
+                    setIsCharging(true);
+                    try {
+                      const res = await fetch('/api/stripe/charge-final', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          clientId: booking.clientId,
+                          amount: chargeDollars,
+                          bookingId: booking.id,
+                          adjustments,
+                        }),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) throw new Error(data.error || 'Charge failed');
+                      toast('success', `Charged $${chargeDollars.toFixed(2)} successfully`);
+                      setAdjustments([]);
+                    } catch (err) {
+                      toast('error', err instanceof Error ? err.message : 'Charge failed');
+                    } finally {
+                      setIsCharging(false);
+                    }
+                  }}
+                >
+                  Confirm Charge
+                </Button>
+              </div>
+            </Modal>
+          </Card>
+        );
+      })()}
+
+      {/* Already paid summary */}
+      {booking.paymentStatus === 'paid' && booking.finalAmount && (
+        <Card>
+          <h2 className="text-lg font-semibold text-navy-heading mb-2 flex items-center gap-2">
+            <span className="text-emerald-500">&#10003;</span> Payment Complete
+          </h2>
+          <div className="space-y-2 text-sm">
+            {booking.estimatedTotal && (
+              <div className="flex justify-between">
+                <span className="text-navy-secondary">Estimated Total</span>
+                <span className="text-navy">${(booking.estimatedTotal / 100).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between">
+              <span className="text-navy-secondary">Deposit</span>
+              <span className="text-navy">-${((booking.depositAmount || 10000) / 100).toFixed(2)}</span>
+            </div>
+            {booking.adjustments?.map((adj, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-navy-secondary">{adj.label}</span>
+                <span className={adj.amount >= 0 ? 'text-navy' : 'text-emerald-600'}>
+                  {adj.amount >= 0 ? '+' : '-'}${(Math.abs(adj.amount) / 100).toFixed(2)}
+                </span>
+              </div>
+            ))}
+            <div className="border-t border-border-light pt-2 flex justify-between font-semibold">
+              <span className="text-navy-heading">Final Charged</span>
+              <span className="text-emerald-600">${(booking.finalAmount / 100).toFixed(2)}</span>
+            </div>
           </div>
           {booking.stripeFinalPaymentId && (
-            <p className="mt-3 text-xs text-emerald-600">
-              Final payment collected — {booking.stripeFinalPaymentId}
-            </p>
+            <p className="mt-3 text-xs text-navy-secondary/50">{booking.stripeFinalPaymentId}</p>
           )}
         </Card>
       )}

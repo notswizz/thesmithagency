@@ -8,6 +8,8 @@ struct Client: Codable, Identifiable, Sendable {
     var website: String?
     var onboardingCompleted: Bool?
     var stripeCustomerId: String?
+    var tcAcceptedAt: Timestamp?
+    var tcVersion: String?
     var createdAt: Timestamp?
     var updatedAt: Timestamp?
 }

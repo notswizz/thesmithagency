@@ -1,6 +1,11 @@
 import Foundation
 import FirebaseFirestore
 
+struct BookingAdjustment: Codable, Sendable {
+    var label: String
+    var amount: Int  // cents, positive or negative
+}
+
 struct DateNeed: Codable, Sendable {
     var date: String?
     var staffCount: Int?
@@ -51,8 +56,15 @@ struct Booking: Codable, Identifiable, Sendable {
     var notes: String?
     var totalStaffNeeded: Int?
     var datesNeeded: [DateNeed]?
-    var depositAmount: Int?
-    var finalAmount: Int?
+    var market: String?
+    var dailyRate: Int?           // cents
+    var totalStaffDays: Int?
+    var estimatedTotal: Int?      // cents
+    var depositAmount: Int?       // cents
+    var balanceDue: Int?          // cents
+    var finalAmount: Int?         // cents
+    var cancellationFee: Int?     // cents
+    var adjustments: [BookingAdjustment]?
     var stripeCustomerId: String?
     var stripePaymentIntentId: String?
     var stripeFinalPaymentId: String?

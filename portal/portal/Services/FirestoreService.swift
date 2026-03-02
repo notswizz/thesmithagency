@@ -137,6 +137,18 @@ final class FirestoreService {
         try db.collection("clients").document(id).setData(from: updated, merge: true)
     }
 
+    func acceptTerms(uid: String, version: String) async {
+        do {
+            try await db.collection("clients").document(uid).setData([
+                "tcAcceptedAt": Timestamp(),
+                "tcVersion": version,
+                "updatedAt": Timestamp()
+            ], merge: true)
+        } catch {
+            print("Failed to save T&C acceptance: \(error)")
+        }
+    }
+
     // MARK: - Shows
 
     func fetchUpcomingShows() async throws -> [Show] {
@@ -218,6 +230,14 @@ final class FirestoreService {
         newBooking.createdAt = FlexTimestamp(timestamp: Timestamp())
         newBooking.updatedAt = FlexTimestamp(timestamp: Timestamp())
         _ = try db.collection("bookings").addDocument(from: newBooking)
+    }
+
+    func cancelBooking(bookingId: String, cancellationFee: Int) async throws {
+        try await db.collection("bookings").document(bookingId).updateData([
+            "status": "cancelled",
+            "cancellationFee": cancellationFee,
+            "updatedAt": Timestamp()
+        ])
     }
 
     // MARK: - Contacts
