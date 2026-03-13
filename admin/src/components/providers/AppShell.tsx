@@ -22,7 +22,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   useCommandPalette();
 
   // Public pages — no shell
-  if (pathname === '/login' || pathname === '/privacy') {
+  if (pathname === '/login' || pathname === '/privacy' || pathname === '/support') {
     return <>{children}</>;
   }
 
