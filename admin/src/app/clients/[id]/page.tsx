@@ -46,7 +46,7 @@ export default function ClientDetailPage() {
   useEffect(() => {
     if (client) {
       setForm({ name: client.name, email: client.email, website: client.website });
-      setAdminNotes((client as Record<string, unknown>).adminNotes as string || '');
+      setAdminNotes((client as unknown as Record<string, unknown>).adminNotes as string || '');
     }
   }, [client]);
 

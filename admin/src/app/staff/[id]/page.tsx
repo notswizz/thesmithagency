@@ -34,7 +34,7 @@ export default function StaffDetailPage() {
   useEffect(() => {
     if (person) {
       setForm(person);
-      setAdminNotes((person as Record<string, unknown>).adminNotes as string || '');
+      setAdminNotes((person as unknown as Record<string, unknown>).adminNotes as string || '');
     }
   }, [person]);
 
