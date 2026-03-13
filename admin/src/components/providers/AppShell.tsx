@@ -21,8 +21,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   useFirestoreSubscriptions();
   useCommandPalette();
 
-  // Login page — no shell
-  if (pathname === '/login') {
+  // Public pages — no shell
+  if (pathname === '/login' || pathname === '/privacy') {
     return <>{children}</>;
   }
 
