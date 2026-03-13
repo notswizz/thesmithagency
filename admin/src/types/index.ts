@@ -12,6 +12,7 @@ export interface Staff {
   college: string;
   dressSize: string;
   shoeSize: string;
+  height?: string;
   instagram: string;
   retailWholesaleExperience: string;
   resumeURL: string;
@@ -26,6 +27,7 @@ export interface Staff {
   bankAccountNumber?: string;
   bankAccountType?: string;
   directDepositCompleted?: boolean;
+  adminNotes?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -36,6 +38,7 @@ export interface Client {
   email: string;
   website: string;
   stripeCustomerId?: string;
+  adminNotes?: string;
   tcAcceptedAt?: Timestamp;
   tcVersion?: string;
   createdAt: Timestamp;
@@ -92,6 +95,10 @@ export interface Booking {
     amount: number;            // cents, positive or negative
   }>;
   stripeCustomerId?: string;
+  paymentMethod?: 'card' | 'check';
+  checkNumber?: string;
+  checkAmount?: number;
+  checkDate?: string;
   stripePaymentIntentId?: string;
   stripeFinalPaymentId?: string;
   createdAt: Timestamp;

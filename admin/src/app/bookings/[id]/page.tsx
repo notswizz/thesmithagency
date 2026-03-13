@@ -33,6 +33,12 @@ export default function BookingDetailPage() {
   const [newAdjLabel, setNewAdjLabel] = useState('');
   const [newAdjAmount, setNewAdjAmount] = useState('');
   const [showChargeConfirm, setShowChargeConfirm] = useState(false);
+  const [payMethod, setPayMethod] = useState<'card' | 'check'>('card');
+  const [checkNumber, setCheckNumber] = useState('');
+  const [checkAmount, setCheckAmount] = useState('');
+  const [checkDate, setCheckDate] = useState('');
+  const [isRecordingCheck, setIsRecordingCheck] = useState(false);
+  const [showCheckConfirm, setShowCheckConfirm] = useState(false);
 
   useEffect(() => {
     if (booking) {
@@ -263,7 +269,7 @@ export default function BookingDetailPage() {
         </Card>
       )}
 
-      {/* Final Charge */}
+      {/* Final Charge — Card / Check toggle */}
       {(booking.paymentStatus === 'deposit_paid' && (booking.status === 'booked' || booking.status === 'completed')) && (() => {
         const rate = booking.dailyRate || 0;
         const days = booking.totalStaffDays || 0;
@@ -276,11 +282,33 @@ export default function BookingDetailPage() {
 
         return (
           <Card>
-            <h2 className="text-lg font-semibold text-navy-heading mb-4 flex items-center gap-2">
-              <span>Final Charge</span>
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold text-navy-heading">Final Charge</h2>
+              <div className="flex rounded-lg ring-1 ring-border-light overflow-hidden">
+                <button
+                  onClick={() => setPayMethod('card')}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    payMethod === 'card'
+                      ? 'bg-pink-dark text-white'
+                      : 'bg-white text-navy-secondary hover:bg-cream-dark'
+                  }`}
+                >
+                  Card
+                </button>
+                <button
+                  onClick={() => setPayMethod('check')}
+                  className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                    payMethod === 'check'
+                      ? 'bg-pink-dark text-white'
+                      : 'bg-white text-navy-secondary hover:bg-cream-dark'
+                  }`}
+                >
+                  Check
+                </button>
+              </div>
+            </div>
 
-            {/* Pricing breakdown */}
+            {/* Pricing breakdown (shared) */}
             <div className="space-y-2 text-sm mb-4">
               <div className="flex justify-between">
                 <span className="text-navy-secondary">Market Rate</span>
@@ -362,57 +390,139 @@ export default function BookingDetailPage() {
               </div>
             </div>
 
-            {/* Charge button */}
-            <Button
-              onClick={() => setShowChargeConfirm(true)}
-              disabled={isCharging || chargeAmount <= 0}
-            >
-              {isCharging ? 'Charging...' : `Charge ${client?.name || 'Client'} $${chargeDollars.toFixed(2)}`}
-            </Button>
+            {/* Card payment */}
+            {payMethod === 'card' && (
+              <>
+                <Button
+                  onClick={() => setShowChargeConfirm(true)}
+                  disabled={isCharging || chargeAmount <= 0}
+                >
+                  {isCharging ? 'Charging...' : `Charge ${client?.name || 'Client'} $${chargeDollars.toFixed(2)}`}
+                </Button>
 
-            {booking.stripeFinalPaymentId && (
-              <p className="mt-3 text-xs text-emerald-600">
-                Final payment collected — {booking.stripeFinalPaymentId}
-              </p>
+                {booking.stripeFinalPaymentId && (
+                  <p className="mt-3 text-xs text-emerald-600">
+                    Final payment collected — {booking.stripeFinalPaymentId}
+                  </p>
+                )}
+
+                <Modal open={showChargeConfirm} onClose={() => setShowChargeConfirm(false)} title="Confirm Charge">
+                  <p className="text-sm text-navy-secondary mb-4">
+                    Charge <span className="font-semibold text-navy">{client?.name}</span> <span className="font-semibold text-navy">${chargeDollars.toFixed(2)}</span> to their card on file?
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <Button onClick={() => setShowChargeConfirm(false)}>Cancel</Button>
+                    <Button
+                      onClick={async () => {
+                        setShowChargeConfirm(false);
+                        setIsCharging(true);
+                        try {
+                          const res = await fetch('/api/stripe/charge-final', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              clientId: booking.clientId,
+                              amount: chargeDollars,
+                              bookingId: booking.id,
+                              adjustments,
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) throw new Error(data.error || 'Charge failed');
+                          toast('success', `Charged $${chargeDollars.toFixed(2)} successfully`);
+                          setAdjustments([]);
+                        } catch (err) {
+                          toast('error', err instanceof Error ? err.message : 'Charge failed');
+                        } finally {
+                          setIsCharging(false);
+                        }
+                      }}
+                    >
+                      Confirm Charge
+                    </Button>
+                  </div>
+                </Modal>
+              </>
             )}
 
-            {/* Confirmation modal */}
-            <Modal open={showChargeConfirm} onClose={() => setShowChargeConfirm(false)} title="Confirm Charge">
-              <p className="text-sm text-navy-secondary mb-4">
-                Charge <span className="font-semibold text-navy">{client?.name}</span> <span className="font-semibold text-navy">${chargeDollars.toFixed(2)}</span> to their card on file?
-              </p>
-              <div className="flex gap-3 justify-end">
-                <Button onClick={() => setShowChargeConfirm(false)}>Cancel</Button>
-                <Button
-                  onClick={async () => {
-                    setShowChargeConfirm(false);
-                    setIsCharging(true);
-                    try {
-                      const res = await fetch('/api/stripe/charge-final', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                          clientId: booking.clientId,
-                          amount: chargeDollars,
-                          bookingId: booking.id,
-                          adjustments,
-                        }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) throw new Error(data.error || 'Charge failed');
-                      toast('success', `Charged $${chargeDollars.toFixed(2)} successfully`);
-                      setAdjustments([]);
-                    } catch (err) {
-                      toast('error', err instanceof Error ? err.message : 'Charge failed');
-                    } finally {
-                      setIsCharging(false);
-                    }
-                  }}
-                >
-                  Confirm Charge
-                </Button>
-              </div>
-            </Modal>
+            {/* Check payment */}
+            {payMethod === 'check' && (
+              <>
+                <div className="space-y-4">
+                  <div>
+                    <label className="text-xs font-medium text-navy-secondary/50 uppercase tracking-wide">Check Number</label>
+                    <input
+                      type="text"
+                      value={checkNumber}
+                      onChange={(e) => setCheckNumber(e.target.value)}
+                      placeholder="e.g. 1234"
+                      className="mt-1 w-full px-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-navy-secondary/50 uppercase tracking-wide">Amount ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={checkAmount}
+                      onChange={(e) => setCheckAmount(e.target.value)}
+                      placeholder="0.00"
+                      className="mt-1 w-full px-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-navy-secondary/50 uppercase tracking-wide">Date</label>
+                    <input
+                      type="date"
+                      value={checkDate}
+                      onChange={(e) => setCheckDate(e.target.value)}
+                      className="mt-1 w-full px-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark"
+                    />
+                  </div>
+                  <Button
+                    onClick={() => setShowCheckConfirm(true)}
+                    disabled={isRecordingCheck || !checkNumber.trim() || !checkAmount || !checkDate}
+                  >
+                    {isRecordingCheck ? 'Recording...' : 'Record Check Payment'}
+                  </Button>
+                </div>
+
+                <Modal open={showCheckConfirm} onClose={() => setShowCheckConfirm(false)} title="Confirm Check Payment">
+                  <p className="text-sm text-navy-secondary mb-4">
+                    Record check <span className="font-semibold text-navy">#{checkNumber}</span> for <span className="font-semibold text-navy">${parseFloat(checkAmount || '0').toFixed(2)}</span> from <span className="font-semibold text-navy">{client?.name}</span>?
+                  </p>
+                  <div className="flex gap-3 justify-end">
+                    <Button onClick={() => setShowCheckConfirm(false)}>Cancel</Button>
+                    <Button
+                      onClick={async () => {
+                        setShowCheckConfirm(false);
+                        setIsRecordingCheck(true);
+                        try {
+                          await bookingService.update(id, {
+                            paymentStatus: 'paid',
+                            paymentMethod: 'check',
+                            checkNumber: checkNumber.trim(),
+                            checkAmount: Math.round(parseFloat(checkAmount) * 100),
+                            checkDate,
+                            finalAmount: Math.round(parseFloat(checkAmount) * 100),
+                          });
+                          toast('success', 'Check payment recorded');
+                          setCheckNumber('');
+                          setCheckAmount('');
+                          setCheckDate('');
+                        } catch (err) {
+                          toast('error', err instanceof Error ? err.message : 'Failed to record check');
+                        } finally {
+                          setIsRecordingCheck(false);
+                        }
+                      }}
+                    >
+                      Confirm
+                    </Button>
+                  </div>
+                </Modal>
+              </>
+            )}
           </Card>
         );
       })()}
@@ -447,6 +557,11 @@ export default function BookingDetailPage() {
               <span className="text-emerald-600">${(booking.finalAmount / 100).toFixed(2)}</span>
             </div>
           </div>
+          {booking.paymentMethod === 'check' && booking.checkNumber && (
+            <p className="mt-3 text-xs text-navy-secondary/50">
+              Paid by check #{booking.checkNumber}{booking.checkDate ? ` on ${booking.checkDate}` : ''}
+            </p>
+          )}
           {booking.stripeFinalPaymentId && (
             <p className="mt-3 text-xs text-navy-secondary/50">{booking.stripeFinalPaymentId}</p>
           )}

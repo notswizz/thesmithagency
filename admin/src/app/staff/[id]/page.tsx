@@ -27,8 +27,15 @@ export default function StaffDetailPage() {
   const [availabilities, setAvailabilities] = useState<Availability[]>([]);
   const [activeSection, setActiveSection] = useState<'bookings' | 'availability'>('bookings');
 
+  // Admin notes
+  const [adminNotes, setAdminNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+
   useEffect(() => {
-    if (person) setForm(person);
+    if (person) {
+      setForm(person);
+      setAdminNotes((person as Record<string, unknown>).adminNotes as string || '');
+    }
   }, [person]);
 
   useEffect(() => {
@@ -86,6 +93,7 @@ export default function StaffDetailPage() {
     { label: 'College', key: 'college' as const },
     { label: 'Dress Size', key: 'dressSize' as const },
     { label: 'Shoe Size', key: 'shoeSize' as const },
+    { label: 'Height', key: 'height' as const },
     { label: 'Instagram', key: 'instagram' as const },
     { label: 'Role', key: 'role' as const },
     { label: 'Pay Rate', key: 'payRate' as const },
@@ -188,7 +196,10 @@ export default function StaffDetailPage() {
                     <span className="text-[11px] uppercase tracking-wider text-navy-secondary/35 font-medium mr-2">Dress {person.dressSize}</span>
                   )}
                   {person.shoeSize && (
-                    <span className="text-[11px] uppercase tracking-wider text-navy-secondary/35 font-medium">Shoe {person.shoeSize}</span>
+                    <span className="text-[11px] uppercase tracking-wider text-navy-secondary/35 font-medium mr-2">Shoe {person.shoeSize}</span>
+                  )}
+                  {person.height && (
+                    <span className="text-[11px] uppercase tracking-wider text-navy-secondary/35 font-medium">{person.height}</span>
                   )}
                 </div>
               </div>
@@ -342,6 +353,37 @@ export default function StaffDetailPage() {
         ) : (
           <p className="text-sm text-navy-secondary/40">Staff member has not submitted direct deposit information yet.</p>
         )}
+      </Card>
+
+      {/* Admin Notes */}
+      <Card>
+        <h2 className="text-sm font-semibold text-navy-heading mb-3">Admin Notes</h2>
+        <textarea
+          value={adminNotes}
+          onChange={(e) => setAdminNotes(e.target.value)}
+          placeholder="Internal notes about this staff member..."
+          rows={4}
+          className="w-full px-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark resize-y"
+        />
+        <div className="flex justify-end mt-3">
+          <Button
+            size="sm"
+            loading={savingNotes}
+            onClick={async () => {
+              setSavingNotes(true);
+              try {
+                await staffService.update(id, { adminNotes });
+                toast('success', 'Notes saved');
+              } catch {
+                toast('error', 'Failed to save notes');
+              } finally {
+                setSavingNotes(false);
+              }
+            }}
+          >
+            Save Notes
+          </Button>
+        </div>
       </Card>
     </div>
   );

@@ -39,8 +39,15 @@ export default function ClientDetailPage() {
   const [showroomForm, setShowroomForm] = useState({ city: '', buildingNumber: '', floorNumber: '', boothNumber: '' });
   const [savingShowroom, setSavingShowroom] = useState(false);
 
+  // Admin notes
+  const [adminNotes, setAdminNotes] = useState('');
+  const [savingNotes, setSavingNotes] = useState(false);
+
   useEffect(() => {
-    if (client) setForm({ name: client.name, email: client.email, website: client.website });
+    if (client) {
+      setForm({ name: client.name, email: client.email, website: client.website });
+      setAdminNotes((client as Record<string, unknown>).adminNotes as string || '');
+    }
   }, [client]);
 
   useEffect(() => {
@@ -236,10 +243,41 @@ export default function ClientDetailPage() {
         </form>
       </Modal>
 
+      {/* Admin Notes */}
+      <Card>
+        <h2 className="text-sm font-semibold text-navy-heading mb-3">Admin Notes</h2>
+        <textarea
+          value={adminNotes}
+          onChange={(e) => setAdminNotes(e.target.value)}
+          placeholder="Internal notes about this client..."
+          rows={4}
+          className="w-full px-3 py-2 rounded-lg ring-1 ring-border-light text-sm focus:outline-none focus:ring-2 focus:ring-pink-dark resize-y"
+        />
+        <div className="flex justify-end mt-3">
+          <Button
+            size="sm"
+            loading={savingNotes}
+            onClick={async () => {
+              setSavingNotes(true);
+              try {
+                await clientService.update(id, { adminNotes });
+                toast('success', 'Notes saved');
+              } catch {
+                toast('error', 'Failed to save notes');
+              } finally {
+                setSavingNotes(false);
+              }
+            }}
+          >
+            Save Notes
+          </Button>
+        </div>
+      </Card>
+
       {/* Showroom Modal */}
       <Modal open={showShowroomModal} onClose={() => setShowShowroomModal(false)} title="Add Showroom">
         <form onSubmit={addShowroom} className="space-y-4">
-          <Input label="City" value={showroomForm.city} onChange={(e) => setShowroomForm({ ...showroomForm, city: e.target.value })} required placeholder="ATL, LA, DAL, NYC, LV" />
+          <Input label="City" value={showroomForm.city} onChange={(e) => setShowroomForm({ ...showroomForm, city: e.target.value })} required placeholder="ATL, LA, DAL, NYC, LV, NSH, MIA" />
           <Input label="Building Number" value={showroomForm.buildingNumber} onChange={(e) => setShowroomForm({ ...showroomForm, buildingNumber: e.target.value })} />
           <Input label="Floor Number" value={showroomForm.floorNumber} onChange={(e) => setShowroomForm({ ...showroomForm, floorNumber: e.target.value })} />
           <Input label="Booth Number" value={showroomForm.boothNumber} onChange={(e) => setShowroomForm({ ...showroomForm, boothNumber: e.target.value })} />
